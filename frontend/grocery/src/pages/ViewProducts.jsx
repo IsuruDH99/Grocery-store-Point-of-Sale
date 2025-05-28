@@ -32,8 +32,8 @@ const ViewProducts = () => {
   const handleDelete = async () => {
     if (!selectedProduct) return;
     try {
-      await axios.delete(`http://localhost:5000/Product/delete-product/${selectedProduct.pid}`);
-      setProducts((prev) => prev.filter((p) => p.pid !== selectedProduct.pid));
+      await axios.delete(`http://localhost:5000/Product/delete-product/${selectedProduct.productCode}`);
+      setProducts((prev) => prev.filter((p) => p.productCode !== selectedProduct.productCode));
       toast.success("Product successfully deleted!");
     } catch (error) {
       console.error("Error deleting product:", error);
@@ -56,11 +56,11 @@ const ViewProducts = () => {
         style={{ marginTop: "65px" }}
       />
 
-      <h6 className="text-[32px] font-semibold text-center text-gray-700 mb-8">
+    <h6 className="text-[40px] font-bold text-center text-gray-700 pb-8">
         Product Records
       </h6>
 
-      <div className="flex justify-between mb-4">
+      {/* <div className="flex justify-between mb-4">
         <button
           type="button"
           onClick={() => navigate("/ProductAdd")}
@@ -68,15 +68,15 @@ const ViewProducts = () => {
         >
           Add New Product
         </button>
-      </div>
+      </div> */}
 
-      <div className="relative overflow-x-auto rounded-lg shadow border border-gray-200 bg-white">
+      <div className="relative overflow-x-auto rounded-lg shadow border border-gray-200 bg-white pt-4">
         <table className="w-full text-sm text-left text-black">
           <thead className="text-xm text-black uppercase bg-indigo-500">
             <tr className="text-center">
               <th scope="col" className="px-6 py-3">Product Code</th>
               <th scope="col" className="px-6 py-3">Product Name</th>
-              <th scope="col" className="px-6 py-3">Price</th>
+              <th scope="col" className="px-6 py-3">Uniit Price</th>
               <th scope="col" className="px-6 py-3">Product Qty</th>
               <th scope="col" className="px-6 py-3">Action</th>
             </tr>
@@ -85,13 +85,13 @@ const ViewProducts = () => {
             {products.length > 0 ? (
               products.map((product) => (
                 <tr
-                  key={product.pid}
+                  key={product.productCode}
                   className="bg-white border-b hover:bg-gray-50 text-center transition duration-150"
                 >
-                  <td className="px-6 py-3 text-base">{product.pid}</td>
+                  <td className="px-6 py-3 text-base">{product.productCode}</td>
                   <td className="px-6 py-3 text-base">{product.productName}</td>
                   <td className="px-6 py-3 text-base">{product.price}</td>
-                  <td className="px-6 py-3 text-base">{product.quantity}</td>
+                  <td className="px-6 py-3 text-base">{product.productQty}</td>
                   <td className="px-6 py-3">
                     <button
                       onClick={() => confirmDelete(product)}
@@ -119,7 +119,7 @@ const ViewProducts = () => {
         </Modal.Header>
         <Modal.Body className="text-xs">
           Are you sure you want to delete{" "}
-          <span className="font-bold">{selectedProduct?.productName}</span> (Product Code: {selectedProduct?.pid})?
+          <span className="font-bold">{selectedProduct?.productName}</span> (Product Code: {selectedProduct?.productCode})?
         </Modal.Body>
         <Modal.Footer className="py-2">
           <Button variant="secondary" size="sm" onClick={() => setShowModal(false)}>
