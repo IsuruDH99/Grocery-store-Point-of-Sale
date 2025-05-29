@@ -9,6 +9,7 @@ import manageproduct from "../Images/manageproduct.jpg";
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const role = sessionStorage.getItem('jobrole');
 
   return (
     <div className="flex flex-wrap justify-center gap-16 p-6 pt-2">
@@ -45,7 +46,8 @@ const Dashboard = () => {
       
      
       {/* Manage Products Card with Dropdown */}
-      <div className="max-w-sm bg-white border border-gray-200 rounded-lg shadow-sm">
+      {role === 'manager' && (
+        <div className="max-w-sm bg-white border border-gray-200 rounded-lg shadow-sm">
         <div className="p-5">
           <h5 className="mb-2 text-2xl font-bold">Manage Products</h5>
           <img
@@ -66,6 +68,7 @@ const Dashboard = () => {
           </Dropdown>
         </div>
       </div>
+      )}
     </div>
   );
 };

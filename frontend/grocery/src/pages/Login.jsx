@@ -48,6 +48,7 @@ const Login = () => {
         password,
       });
       localStorage.setItem("accessToken", response.data.token);
+      sessionStorage.setItem('jobrole', response.data.user.jobrole); 
       if (response.status === 200) {
         showSuccess("Successfully Login");
         setMessage("Login successful!");

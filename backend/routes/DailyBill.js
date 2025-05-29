@@ -1,7 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const DailyBill = require('../models/DailyBill');
-//const BillCounter = require('../models/BillCounter');
+const db = require('../models');
+const DailyBill = db.DailyBill;
+const BillCounter = db.BillCounter;
+
 
 // Generate bill number
 async function generateBillNumber() {
@@ -26,35 +28,46 @@ async function generateBillNumber() {
 
 // Save bill to database
 router.post('/save-bill', async (req, res) => {
+    console.log("Incoming request body:", req.body);
+
     try {
-        const { date, billItems, totalBill } = req.body;
-        
-        // Extract product codes from bill items
-        const productCodes = billItems.map(item => item.productCode);
-        
+        const { date, items, totalAmount } = req.body;
+
+        // ✅ Validate items
+        if (!Array.isArray(items)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid request: items must be an array'
+            });
+        }
+
+        // Extract product codes
+        const productCodes = items.map(item => item.productCode);
+
         // Generate bill number
         const billId = await generateBillNumber();
-        
+
         // Create bill record
         const newBill = await DailyBill.create({
             date,
             billId,
             productCodes,
-            totalBill
+            totalBill: totalAmount
         });
-        
+
         res.status(201).json({
             success: true,
             message: 'Bill saved successfully',
             billId: newBill.billId
         });
     } catch (error) {
-        console.error("Error saving bill:", error);
+        console.error("❌ Error saving bill:", error);
         res.status(500).json({ 
             success: false,
             error: "Failed to save bill" 
         });
     }
 });
+
 
 module.exports = router;

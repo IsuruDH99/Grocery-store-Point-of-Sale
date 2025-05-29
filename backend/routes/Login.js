@@ -1,24 +1,26 @@
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcrypt');
-const db = require('../models'); // Import models correctly (assuming Sequelize setup)
-const Login = db.Login; // Access the Login model
+const jwt = require('jsonwebtoken');
+const db = require('../models');
+const Login = db.Login;
+
+const SECRET_KEY = 'your_secret_key'; // Replace with env variable in production
 
 // ✅ Register a new user
 router.post('/register', async (req, res) => {
+
+  console.log("register methos");
   try {
     const { email, password, jobrole } = req.body;
 
-    // 🔍 Check if user already exists
     const existingUser = await Login.findOne({ where: { email } });
     if (existingUser) {
       return res.status(400).json({ message: 'Email already registered' });
     }
 
-    // 🔐 Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // ➕ Create new user
     await Login.create({
       email,
       password: hashedPassword,
@@ -32,26 +34,34 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// 🔑 Login user
+// ✅ Login user and issue JWT token
 router.post('/logindata', async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // 🔍 Find user by email
     const user = await Login.findOne({ where: { email } });
     if (!user) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
-    // 🔒 Compare passwords
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
-    // ✅ Successful login
+    const token = jwt.sign(
+      {
+        id: user.id,
+        email: user.email,
+        jobrole: user.jobrole,
+      },
+      SECRET_KEY,
+      { expiresIn: '1h' }
+    );
+
     res.status(200).json({
       message: 'Login successful',
+      token,
       user: {
         id: user.id,
         email: user.email,
@@ -69,16 +79,13 @@ router.post('/reset-password', async (req, res) => {
   try {
     const { email, newPassword } = req.body;
 
-    // 🔍 Find user by email
     const user = await Login.findOne({ where: { email } });
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // 🔐 Hash new password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    // 🔄 Update password
     await user.update({ password: hashedPassword });
 
     res.status(200).json({ message: 'Password updated successfully' });
