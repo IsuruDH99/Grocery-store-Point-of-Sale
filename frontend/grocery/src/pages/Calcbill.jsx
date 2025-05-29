@@ -11,20 +11,20 @@ const CalcBill = () => {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [billItems, setBillItems] = useState([]);
   const [selectedProductCode, setSelectedProductCode] = useState("");
-  const [quantity, setQuantity] = useState(1);
+  const [quantity, setQuantity] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [billNumber, setBillNumber] = useState("");
   const [lastBillNumber, setLastBillNumber] = useState(0);
+  const [isSaving, setIsSaving] = useState(false); // State to manage saving status
 
   // Fetch products on component mount
   useEffect(() => {
     const fetchProducts = async () => {
       try {
         const response = await axios.get("http://localhost:5000/Product/get-products");
-        // Ensure price is a number when setting products
         const processedProducts = response.data.map(product => ({
           ...product,
-          price: parseFloat(product.price) // Convert price to a number
+          price: parseFloat(product.price)
         }));
         setProducts(processedProducts);
       } catch (error) {
@@ -33,8 +33,7 @@ const CalcBill = () => {
       }
     };
     fetchProducts();
-
-    // Generate initial bill number
+    // Initially generate a bill number, this will be a preview until a bill is saved
     generateBillNumber();
   }, []);
 
@@ -43,17 +42,24 @@ const CalcBill = () => {
     const today = new Date();
     const month = String(today.getMonth() + 1).padStart(2, '0');
     const yearShort = String(today.getFullYear()).slice(-2);
+    // You'll need to fetch the actual last bill number from your backend
+    // to ensure unique and sequential bill numbers across sessions.
+    // For now, this just increments a local state for demonstration.
     const newNumber = lastBillNumber + 1;
-
     const formattedNumber = `${yearShort}${month}-${String(newNumber).padStart(6, '0')}`;
     setBillNumber(formattedNumber);
-    return formattedNumber;
   };
 
   // Add item to bill
   const handleAddItem = () => {
-    if (!selectedProductCode || quantity <= 0) {
-      toast.error("Please select a product and enter a valid quantity.");
+    if (!selectedProductCode) {
+      toast.error("Please select a product.");
+      return;
+    }
+
+    const parsedQuantity = parseFloat(quantity);
+    if (isNaN(parsedQuantity) || parsedQuantity <= 0) {
+      toast.error("Please enter a valid quantity greater than 0.");
       return;
     }
 
@@ -63,24 +69,48 @@ const CalcBill = () => {
       return;
     }
 
-    // Now product.price is guaranteed to be a number due to the parsing in useEffect
     const newItem = {
       productCode: product.productCode,
       productName: product.productName,
       price: product.price,
-      quantity: quantity,
-      total: product.price * quantity
+      quantity: parsedQuantity,
+      total: product.price * parsedQuantity
     };
 
     setBillItems([...billItems, newItem]);
     setSelectedProductCode("");
-    setQuantity(1);
+    setQuantity("");
     toast.success(`"${product.productName}" added to bill.`);
   };
 
   // Calculate total amount
   const calculateTotal = () => {
     return billItems.reduce((sum, item) => sum + item.total, 0);
+  };
+
+  // Save bill to database
+  const saveBill = async () => {
+    setIsSaving(true);
+    try {
+      // You should send the current billNumber with the data to be saved
+      const response = await axios.post("http://localhost:5000/DailyBill/save-bill", {
+        billNumber: billNumber, // Include the generated bill number
+        date: selectedDate,
+        items: billItems, // Changed billItems to items to match common backend conventions (adjust if your backend expects billItems)
+        totalAmount: calculateTotal() // Changed totalBill to totalAmount (adjust if your backend expects totalBill)
+      });
+
+      toast.success("✅ Bill saved successfully!");
+      setIsModalOpen(false); // Close the modal
+      setBillItems([]); // Clear bill items
+      setLastBillNumber(prev => prev + 1); // Increment for the next bill number preview
+      generateBillNumber(); // Generate a new bill number for the next transaction
+    } catch (error) {
+      console.error("Error saving bill:", error);
+      toast.error("❌ Failed to save bill");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Generate bill and open modal
@@ -96,7 +126,7 @@ const CalcBill = () => {
   const handleClearBill = () => {
     setBillItems([]);
     setSelectedProductCode("");
-    setQuantity(1);
+    setQuantity("");
     toast.info("Bill cleared.");
   };
 
@@ -134,7 +164,7 @@ const CalcBill = () => {
           <option value="">-- Select Product --</option>
           {products.map((product) => (
             <option key={product.productCode} value={product.productCode}>
-              {product.productCode} - {product.productName} (₹{product.price.toFixed(2)})
+              {product.productCode} - {product.productName}
             </option>
           ))}
         </select>
@@ -145,10 +175,25 @@ const CalcBill = () => {
         <label className="w-32 text-gray-700 font-medium">Quantity:</label>
         <input
           type="number"
-          min="1"
+          min="0"
+          step="0.001"
           value={quantity}
-          onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+          onChange={(e) => {
+            const inputValue = e.target.value;
+            if (inputValue === "" || /^[0-9]*\.?[0-9]*$/.test(inputValue)) {
+              setQuantity(inputValue);
+            }
+          }}
+          onBlur={(e) => {
+            const value = parseFloat(e.target.value);
+            if (isNaN(value) || value <= 0) {
+              setQuantity("");
+            } else {
+              setQuantity(value.toString());
+            }
+          }}
           className="border rounded p-2 w-20"
+          placeholder="0.000"
         />
       </div>
 
@@ -170,9 +215,9 @@ const CalcBill = () => {
               <tr className="bg-gray-100">
                 <th className="border p-2">SL.</th>
                 <th className="border p-2">Item</th>
-                <th className="border p-2">Price</th>
+                <th className="border p-2">Price (Rs.)</th>
                 <th className="border p-2">Qty</th>
-                <th className="border p-2">Total</th>
+                <th className="border p-2">Total (Rs.)</th>
               </tr>
             </thead>
             <tbody>
@@ -180,9 +225,12 @@ const CalcBill = () => {
                 <tr key={index} className="hover:bg-gray-50">
                   <td className="border p-2 text-center">{index + 1}</td>
                   <td className="border p-2">{item.productName}</td>
-                  <td className="border p-2 text-right">₹{item.price.toFixed(2)}</td>
-                  <td className="border p-2 text-center">{item.quantity}</td>
-                  <td className="border p-2 text-right">₹{item.total.toFixed(2)}</td>
+                  <td className="border p-2 text-right">{item.price.toFixed(2)}</td>
+                  <td className="border p-2 text-center">
+                    {Number.isInteger(item.quantity) ?
+                      item.quantity : item.quantity.toFixed(3)}
+                  </td>
+                  <td className="border p-2 text-right">{item.total.toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>
@@ -255,9 +303,9 @@ const CalcBill = () => {
             <tr className="bg-gray-100">
               <th className="border p-2">SL.</th>
               <th className="border p-2">Item</th>
-              <th className="border p-2">Price</th>
+              <th className="border p-2">Price (Rs.)</th>
               <th className="border p-2">Qty</th>
-              <th className="border p-2">Total</th>
+              <th className="border p-2">Total (Rs.)</th>
             </tr>
           </thead>
           <tbody>
@@ -265,16 +313,19 @@ const CalcBill = () => {
               <tr key={index}>
                 <td className="border p-2 text-center">{index + 1}</td>
                 <td className="border p-2">{item.productName}</td>
-                <td className="border p-2 text-right">₹{item.price.toFixed(2)}</td>
-                <td className="border p-2 text-center">{item.quantity}</td>
-                <td className="border p-2 text-right">₹{item.total.toFixed(2)}</td>
+                <td className="border p-2 text-right">{item.price.toFixed(2)}</td>
+                <td className="border p-2 text-center">
+                  {Number.isInteger(item.quantity) ?
+                    item.quantity : item.quantity.toFixed(3)}
+                </td>
+                <td className="border p-2 text-right">{item.total.toFixed(2)}</td>
               </tr>
             ))}
           </tbody>
         </table>
 
         <div className="border-t-2 pt-4 text-center">
-          <p className="text-xl font-bold">Total: ₹{calculateTotal().toFixed(2)}</p>
+          <p className="text-xl font-bold">Total: Rs.{calculateTotal().toFixed(2)}</p>
         </div>
 
         <div className="mt-6 text-center">
@@ -286,14 +337,13 @@ const CalcBill = () => {
           </button>
           <button
             className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-            onClick={() => {
+            onClick={async () => {
+              await saveBill(); // Call saveBill when "Print Bill" is clicked
               window.print();
-              setIsModalOpen(false);
-              setLastBillNumber(prev => prev + 1);
-              handleClearBill();
             }}
+            disabled={isSaving} // Disable print button while saving
           >
-            Print Bill
+            {isSaving ? "Saving..." : "Print & Save Bill"} {/* Change button text while saving */}
           </button>
         </div>
       </Modal>

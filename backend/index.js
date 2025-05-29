@@ -14,11 +14,8 @@ app.use('/login', LoginRoute)
 const ProductRoute = require('./routes/Products')
 app.use('/product', ProductRoute)
 
-// const SubjectRoute = require('./routes/Subject')
-// app.use('/subject', SubjectRoute)
-
-// const FeeRecordRoute = require('./routes/FeeRecord');
-// app.use('/feerecord', FeeRecordRoute)
+const DailyBillRouter = require('./routes/DailyBill');
+app.use('/dailybill', DailyBillRouter);
 
 
 db.sequelize.sync().then(() => {
